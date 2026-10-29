@@ -1,6 +1,6 @@
 # Duoline + MyMemory
 
-Site de tradução bilíngue com interface minimalista e servidor Node.js. Usa a API pública MyMemory Translation API, sem chave e sem instalação de outro serviço.
+Site de tradução. Usa a API pública MyMemory Translation API.
 
 ## Executar no Windows
 
