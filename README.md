@@ -38,8 +38,5 @@ Use um e-mail que você tenha autorização para fornecer; ele será enviado ao 
 ## Recursos
 
 - Interface adaptável para computador e celular, tema escuro e claro
-- Idioma de origem e destino selecionáveis
 - Original e tradução pareados linha por linha
-- Botão de copiar o resultado
-- Logo incluída
 - A chave de API não é necessária
