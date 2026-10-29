@@ -1,0 +1,1271 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Duoline — traduza textos e leia o original e a tradução lado a lado, linha por linha.">
+  <meta name="theme-color" content="#000000" id="metaTheme">
+  <title>Duoline — tradução lado a lado</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Crect x='7' y='7' width='18' height='7' rx='3.5' fill='%23fff'/%3E%3Crect x='7' y='19' width='11' height='3' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* primitivos */
+      --c-black: oklch(0 0 0);
+      --c-white: oklch(1 0 0);
+      --c-gray-16: oklch(0.16 0 0);   /* superfície escura elevada */
+      --c-gray-24: oklch(0.24 0 0);   /* hairline escuro */
+      --c-gray-98: oklch(0.985 0 0);  /* superfície clara elevada */
+      --c-gray-90: oklch(0.91 0 0);   /* hairline claro */
+
+      /* semânticos — tema escuro (padrão) */
+      --bg: var(--c-black);
+      --surface: var(--c-gray-16);
+      --line: var(--c-gray-24);
+      --text: var(--c-white);
+      --muted: oklch(0.64 0 0);
+      --inverted-bg: var(--c-white);
+      --inverted-text: var(--c-black);
+
+      /* tipografia */
+      --font-body: "Be Vietnam Pro", "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+      /* espaçamento (escala 4/8px) */
+      --gutter: 1.2rem;
+      --space-1: 0.4rem;
+      --space-2: 0.8rem;
+      --space-3: 1.2rem;
+      --space-4: 1.6rem;
+      --space-5: 2.4rem;
+      --space-6: 3.2rem;
+      --space-7: 4.8rem;
+      --space-8: 6.4rem;
+
+      /* camadas */
+      --z-header: 10;
+      --z-toast: 20;
+
+      /* transição de troca de tema (600ms, como o padrão de referência) */
+      --theme-duration: 600ms;
+    }
+
+    [data-theme="light"] {
+      --bg: var(--c-white);
+      --surface: var(--c-gray-98);
+      --line: var(--c-gray-90);
+      --text: var(--c-black);
+      --muted: oklch(0.46 0 0);
+      --inverted-bg: var(--c-black);
+      --inverted-text: var(--c-white);
+    }
+
+    /* ---------- transição circular de tema ---------- */
+    :root { view-transition-name: root; }
+
+    @keyframes duoline-circle-reveal {
+      from { clip-path: circle(0 at var(--theme-wipe-x) var(--theme-wipe-y)); }
+      to {
+        clip-path: circle(var(--theme-wipe-radius) at var(--theme-wipe-x) var(--theme-wipe-y));
+      }
+    }
+
+    ::view-transition-old(root) {
+      animation: none;
+      z-index: 1;
+      mix-blend-mode: normal;
+    }
+
+    ::view-transition-new(root) {
+      animation: duoline-circle-reveal 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      z-index: 2;
+      mix-blend-mode: normal;
+    }
+
+    html.theme-wipe-active *,
+    html.theme-wipe-active *::before,
+    html.theme-wipe-active *::after {
+      transition-duration: 0s !important;
+    }
+
+    html.theme-instant,
+    html.theme-instant * {
+      transition-duration: 0s !important;
+    }
+
+    .theme-wipe-fallback {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      pointer-events: none;
+      clip-path: circle(0 at var(--theme-wipe-x) var(--theme-wipe-y));
+      transition: clip-path 680ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .theme-wipe-fallback.is-expanding {
+      clip-path: circle(var(--theme-wipe-radius) at var(--theme-wipe-x) var(--theme-wipe-y));
+    }
+
+    /* ---------- reset ---------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      line-height: 1.6;
+      min-height: 100dvh;
+      transition: background-color var(--theme-duration) ease,
+                  color var(--theme-duration) ease;
+      /* troca de tema com repaint mínimo */
+    }
+
+    ::selection { background: var(--text); color: var(--bg); }
+
+    /* ---------- utilitários ---------- */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+    }
+
+    .mono-label {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+
+    /* ---------- cabeçalho ---------- */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-header);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3) var(--gutter);
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+      transition: background-color var(--theme-duration) ease;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      color: var(--text);
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      min-height: 44px; /* alvo de toque */
+    }
+
+    .brand-mark {
+      display: inline-block;
+      width: 1.5rem;
+      height: 0.62rem;
+      border-radius: 999px;
+      background: var(--text);
+      transition: background-color var(--theme-duration) ease;
+    }
+
+    .header-meta {
+      display: none;
+      color: var(--muted);
+    }
+    @media (min-width: 640px) {
+      .header-meta { display: inline; }
+    }
+
+    .icon-button {
+      display: inline-grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 0;
+      cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease;
+    }
+    .icon-button:hover { background: var(--text); color: var(--bg); }
+    .icon-button:active { transform: translateY(1px); }
+    .icon-button svg { width: 18px; height: 18px; display: block; }
+
+    [data-theme="dark"] .icon-sun { display: block; }
+    [data-theme="dark"] .icon-moon { display: none; }
+    [data-theme="light"] .icon-sun { display: none; }
+    [data-theme="light"] .icon-moon { display: block; }
+
+    /* ---------- estrutura ---------- */
+    .container {
+      max-width: 90em;
+      margin-inline: auto;
+      padding-inline: var(--gutter);
+    }
+
+    main { padding-bottom: var(--space-8); }
+
+    /* ---------- herói / wordmark ---------- */
+    .hero {
+      padding-top: var(--space-7);
+      padding-bottom: var(--space-6);
+    }
+
+    .wordmark {
+      position: relative;
+      display: block;
+      font-weight: 800;
+      font-size: clamp(3.6rem, 24.5vw, 21rem);
+      line-height: 0.94;
+      letter-spacing: -0.035em;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    /* pílula-macron sobre o "o" — assinatura do wordmark */
+    .wordmark .o {
+      position: relative;
+      display: inline-block;
+    }
+    .wordmark .o::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 0.015em);
+      transform: translateX(-50%);
+      width: 0.78em;
+      height: 0.115em;
+      border-radius: 999px;
+      background: var(--text);
+      transition: background-color var(--theme-duration) ease;
+    }
+
+    .hero-sub {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-2) var(--space-4);
+      margin-top: var(--space-4);
+      padding-top: var(--space-3);
+      border-top: 1px solid var(--line);
+    }
+    .hero-sub h1 {
+      font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+    .hero-sub .mono-label { color: var(--muted); }
+
+    /* ---------- workspace (entrada) ---------- */
+    .workspace {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      transition: background-color var(--theme-duration) ease,
+                  border-color var(--theme-duration) ease;
+    }
+
+    .workspace-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--line);
+    }
+    .workspace-head .mono-label { color: var(--muted); }
+    .counter { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .counter.is-limit { color: var(--text); }
+
+    #sourceText {
+      display: block;
+      width: 100%;
+      min-height: 11rem;
+      max-height: 40vh;
+      padding: var(--space-3);
+      background: transparent;
+      color: var(--text);
+      border: 0;
+      border-radius: 0;
+      resize: vertical;
+      font-family: var(--font-body);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    #sourceText::placeholder { color: var(--muted); opacity: 0.7; }
+    #sourceText:focus { outline: none; }
+    .workspace:focus-within { border-color: var(--text); }
+
+    .workspace-foot {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2) var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      border-top: 1px solid var(--line);
+    }
+
+    .language-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+    }
+
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      padding: 0.55rem 1.9rem 0.55rem 0.7rem;
+      min-height: 44px;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.7rem center;
+      transition: border-color 160ms ease;
+    }
+    select:hover, select:focus-visible { border-color: var(--text); }
+    select option { background: var(--bg); color: var(--text); }
+
+    .swap-button {
+      display: inline-grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 0;
+      cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease;
+    }
+    .swap-button:hover { background: var(--text); color: var(--bg); }
+    .swap-button:active { transform: translateY(1px); }
+    .swap-button svg { width: 16px; height: 16px; display: block; }
+
+    .text-button {
+      background: none;
+      border: 0;
+      border-radius: 0;
+      color: var(--text);
+      cursor: pointer;
+      padding: var(--space-1) 0;
+      min-height: 44px;
+      position: relative;
+    }
+    /* sublinhado animado em duas camadas */
+    .text-button::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0.45rem;
+      height: 1px;
+      background: var(--text);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 200ms ease-out;
+    }
+    .text-button:hover::after,
+    .text-button:focus-visible::after { transform: scaleX(1); }
+
+    /* ---------- linha de ação ---------- */
+    .action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      margin-top: var(--space-4);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      min-height: 44px;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--muted);
+      flex: none;
+    }
+    .status.is-busy .status-dot { background: var(--text); animation: pulse 1s ease-in-out infinite; }
+    .status.is-error { color: var(--text); }
+    .status.is-error .status-dot { background: var(--text); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    .translate-button {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-3);
+      min-height: 52px;
+      padding: 0 var(--space-5);
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--text);
+      border-radius: 0;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background-color 180ms ease, color 180ms ease;
+    }
+    .translate-button .arrow { transition: transform 180ms ease-out; }
+    .translate-button:hover:not(:disabled),
+    .translate-button:focus-visible:not(:disabled) {
+      background: var(--text);
+      color: var(--bg);
+    }
+    .translate-button:hover:not(:disabled) .arrow { transform: translate(2px, -2px); }
+    .translate-button:active:not(:disabled) { transform: translateY(1px); }
+    .translate-button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* ---------- resultados ---------- */
+    .results { margin-top: var(--space-7); }
+
+    .results-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--space-2) var(--space-3);
+      padding-bottom: var(--space-2);
+      border-bottom: 1px solid var(--text);
+    }
+    .results-head .mono-label strong { font-weight: 500; color: var(--text); }
+    .results-head .mono-label span { color: var(--muted); }
+
+    .paired-list { margin-top: var(--space-2); }
+
+    .pair {
+      display: grid;
+      grid-template-columns: 3rem 1fr 1fr auto;
+      gap: var(--space-3);
+      align-items: start;
+      padding: var(--space-3) 0;
+      border-bottom: 1px solid var(--line);
+      /* entrada escalonada: só transform/opacity, <300ms */
+      opacity: 0;
+      transform: translateY(6px);
+      animation: pair-in 240ms ease-out forwards;
+    }
+    @keyframes pair-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .pair-index {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding-top: 0.2em;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .pair-original, .pair-translation {
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      line-height: 1.65;
+    }
+    .pair-original { color: var(--muted); }
+    .pair-translation { color: var(--text); font-weight: 500; }
+    .pair-translation.is-empty { color: var(--muted); font-weight: 400; font-style: italic; }
+
+    .pair-copy {
+      opacity: 0;
+      background: none;
+      border: 0;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: var(--space-1);
+      min-height: 32px;
+      transition: opacity 160ms ease, color 160ms ease;
+    }
+    .pair:hover .pair-copy,
+    .pair-copy:focus-visible { opacity: 1; color: var(--text); }
+    .pair-copy:hover { text-decoration: underline; }
+    @media (hover: none) { .pair-copy { opacity: 1; } }
+
+    @media (max-width: 760px) {
+      .pair { grid-template-columns: 2.2rem 1fr; grid-template-areas: "idx orig" "idx trans" "idx copy"; row-gap: var(--space-1); }
+      .pair-index { grid-area: idx; }
+      .pair-original { grid-area: orig; }
+      .pair-translation { grid-area: trans; }
+      .pair-copy { grid-area: copy; justify-self: start; }
+
+      /* controles de idioma em coluna; seta de inversão girada 90° */
+      .language-controls {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+      }
+      .language-controls select { width: 100%; }
+      .swap-button { align-self: center; }
+      .swap-button svg { transform: rotate(90deg); }
+    }
+
+    .results-empty {
+      padding: var(--space-5) 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    /* ---------- rodapé ---------- */
+    .footnote {
+      margin-top: var(--space-7);
+      padding-top: var(--space-3);
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      line-height: 1.8;
+      letter-spacing: 0.03em;
+      max-width: 72ch;
+    }
+
+    /* ---------- toast ---------- */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: var(--space-5);
+      z-index: var(--z-toast);
+      transform: translate(-50%, calc(100% + var(--space-5)));
+      background: var(--inverted-bg);
+      color: var(--inverted-text);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+      padding: var(--space-2) var(--space-4);
+      border-radius: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: transform 220ms ease-out, opacity 220ms ease-out;
+      max-width: min(90vw, 34rem);
+      text-align: center;
+    }
+    .toast.is-visible {
+      transform: translate(-50%, 0);
+      opacity: 1;
+    }
+
+    /* ---------- movimento reduzido ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .pair { opacity: 1; transform: none; }
+    }
+    /* ---------- interface compacta ---------- */
+    :root {
+      --gutter: 1rem;
+      --space-1: 0.3rem;
+      --space-2: 0.55rem;
+      --space-3: 0.8rem;
+      --space-4: 1.1rem;
+      --space-5: 1.6rem;
+      --space-6: 2.1rem;
+      --space-7: 3rem;
+      --space-8: 4rem;
+    }
+
+    body { font-size: 0.92rem; }
+    .site-header { padding: 0.45rem var(--gutter); }
+    .brand { gap: 0.5rem; font-size: 0.85rem; min-height: 36px; }
+    .brand-mark { width: 1.25rem; height: 0.52rem; }
+    .icon-button { width: 36px; height: 36px; }
+    .icon-button svg { width: 16px; height: 16px; }
+
+    .container { max-width: 76rem; }
+    main { padding-bottom: var(--space-6); }
+    .hero { padding-top: clamp(1.4rem, 4vh, 2.8rem); padding-bottom: var(--space-4); }
+    .wordmark { font-size: clamp(2.8rem, 15vw, 11rem); }
+    .hero-sub { margin-top: var(--space-3); padding-top: var(--space-2); }
+    .hero-sub h1 { font-size: clamp(1rem, 1.7vw, 1.25rem); }
+    .mono-label { font-size: 0.68rem; }
+
+    .workspace-head,
+    .workspace-foot { padding: 0.55rem 0.75rem; }
+    #sourceText { min-height: 8rem; max-height: 35vh; padding: 0.8rem; font-size: 0.95rem; line-height: 1.6; }
+    .counter { font-size: 0.66rem; }
+    select { min-height: 36px; padding: 0.4rem 1.65rem 0.4rem 0.55rem; font-size: 0.72rem; }
+    .swap-button { width: 36px; height: 36px; }
+    .swap-button svg { width: 14px; height: 14px; }
+    .text-button { min-height: 34px; }
+    .text-button::after { bottom: 0.25rem; }
+
+    .action-row { margin-top: var(--space-3); gap: var(--space-2); }
+    .status { min-height: 34px; font-size: 0.68rem; }
+    .translate-button { min-height: 42px; padding: 0 1.1rem; gap: 0.7rem; font-size: 0.75rem; }
+    .results { margin-top: var(--space-5); }
+    .pair { gap: var(--space-2); padding: var(--space-2) 0; }
+    .pair-original, .pair-translation { font-size: 0.9rem; line-height: 1.55; }
+    .pair-copy { font-size: 0.65rem; }
+    .results-empty { padding: var(--space-4) 0; font-size: 0.78rem; }
+    .footnote { margin-top: var(--space-5); padding-top: var(--space-2); font-size: 0.66rem; }
+    .toast { bottom: var(--space-4); font-size: 0.72rem; padding: var(--space-2) var(--space-3); }
+
+    @media (min-width: 761px) {
+      .language-controls { gap: 0.35rem; }
+    }
+
+    @media (max-width: 760px) {
+      .hero { padding-top: 1.5rem; }
+      .wordmark { font-size: clamp(2.65rem, 14.5vw, 6.8rem); }
+      .hero-sub { align-items: flex-start; }
+      .hero-sub .mono-label { max-width: 100%; }
+      .workspace-foot { gap: 0.4rem 0.6rem; }
+      .language-controls { gap: 0.35rem; }
+      .language-controls select { min-height: 36px; }
+      .swap-button { width: 34px; height: 34px; }
+    }
+
+    @media (max-width: 380px) {
+      .hero-sub h1 { font-size: 0.95rem; }
+      .hero-sub .mono-label { font-size: 0.6rem; }
+      .translate-button { padding-inline: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Duoline — início">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>duoline</span>
+    </a>
+    <span class="header-meta mono-label" aria-hidden="true">Duoline</span>
+    <button class="icon-button" id="themeToggle" type="button" aria-label="Alternar para tema claro" title="Alternar tema">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19"/>
+      </svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M20.4 14.2A8.5 8.5 0 0 1 9.8 3.6a8.5 8.5 0 1 0 10.6 10.6Z"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="container">
+    <section class="hero" aria-labelledby="pageTitle">
+      <span class="wordmark" aria-hidden="true">du<span class="o">o</span>line</span>
+      <div class="hero-sub">
+        <h1 id="pageTitle">Entenda cada palavra.</h1>
+        <span class="mono-label">Tradução - palavra por palavra </span>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="Texto de entrada">
+      <div class="workspace-head">
+        <label class="mono-label" for="sourceText">Texto original</label>
+        <span class="counter mono-label" id="charCount">0 / 30.000</span>
+      </div>
+      <textarea id="sourceText" placeholder="Cole seu texto aqui…" maxlength="30000" spellcheck="true" aria-describedby="charCount"></textarea>
+      <div class="workspace-foot">
+        <div class="language-controls">
+          <label class="sr-only" for="sourceLang">Idioma original</label>
+          <select id="sourceLang" aria-label="Idioma original">
+            <option value="auto" selected>Detectar idioma</option>
+            <option value="en">Inglês</option>
+            <option value="pt">Português</option>
+            <option value="es">Espanhol</option>
+            <option value="fr">Francês</option>
+            <option value="de">Alemão</option>
+            <option value="it">Italiano</option>
+            <option value="ja">Japonês</option>
+            <option value="ko">Coreano</option>
+            <option value="zh-CN">Chinês</option>
+          </select>
+          <button class="swap-button" id="swapLangs" type="button" aria-label="Inverter idiomas" title="Inverter idiomas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M4 8h13l-3.2-3.2M20 16H7l3.2 3.2"/>
+            </svg>
+          </button>
+          <label class="sr-only" for="targetLang">Idioma da tradução</label>
+          <select id="targetLang" aria-label="Idioma da tradução">
+            <option value="pt" selected>Português</option>
+            <option value="en">Inglês</option>
+            <option value="es">Espanhol</option>
+            <option value="fr">Francês</option>
+            <option value="de">Alemão</option>
+            <option value="it">Italiano</option>
+            <option value="ja">Japonês</option>
+            <option value="ko">Coreano</option>
+            <option value="zh-CN">Chinês</option>
+          </select>
+        </div>
+        <button class="text-button mono-label" id="clearBtn" type="button">Limpar</button>
+      </div>
+    </section>
+
+    <div class="action-row">
+      <p class="status" id="status" role="status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="statusText">Pronto para traduzir</span>
+      </p>
+      <button class="translate-button" id="translateBtn" type="button">
+        <span>Traduzir texto</span><span class="arrow" aria-hidden="true">&#8599;</span>
+      </button>
+    </div>
+
+    <section class="results" id="results" hidden aria-labelledby="resultsTitle">
+      <div class="results-head">
+        <p class="mono-label" id="resultsTitle"><strong>Resultado</strong> <span id="resultsMeta"></span></p>
+        <button class="text-button mono-label" id="copyAll" type="button">Copiar tudo</button>
+      </div>
+      <div class="paired-list" id="pairedList"></div>
+    </section>
+
+    <p class="footnote">
+      As traduções são automáticas (MyMemory) e podem precisar de revisão — especialmente em letras, gírias e expressões conotativas. Limite gratuito: ~5.000 caracteres/dia por visitante. Atalho: Ctrl/Cmd + Enter traduz.
+    </p>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <p style="padding:1.2rem;font-family:monospace;">O Duoline precisa de JavaScript para funcionar.</p>
+  </noscript>
+
+  <script>
+  "use strict";
+
+  /* ============================================================
+     DUOLINE — lógica da aplicação
+     Módulo único: tema → entrada → serviço de tradução (MyMemory)
+     → renderização → clipboard. Sem dependências externas além
+     da API pública de tradução.
+     ============================================================ */
+  (() => {
+
+    /* ---------- constantes ---------- */
+    const API_URL = "https://api.mymemory.translated.net/get";
+    const MAX_CHARS = 30000;          // limite do campo (contrato da UI)
+    const CHUNK_TARGET_BYTES = 430;   // margem sob o limite de 500 bytes/requisição
+    const CHUNK_MAX_LINES = 12;       // linhas por bloco
+    const REQUEST_GAP_MS = 160;       // espaçamento mínimo entre requisições
+    const REQUEST_TIMEOUT_MS = 15000;
+    const MAX_RETRIES = 1;
+
+    const fmt = new Intl.NumberFormat("pt-BR");
+    const encoder = new TextEncoder();
+
+    /* ---------- referências ao DOM ---------- */
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      html: document.documentElement,
+      metaTheme: $("metaTheme"),
+      themeToggle: $("themeToggle"),
+      sourceText: $("sourceText"),
+      charCount: $("charCount"),
+      sourceLang: $("sourceLang"),
+      targetLang: $("targetLang"),
+      swapLangs: $("swapLangs"),
+      clearBtn: $("clearBtn"),
+      status: $("status"),
+      statusText: $("statusText"),
+      translateBtn: $("translateBtn"),
+      results: $("results"),
+      resultsMeta: $("resultsMeta"),
+      pairedList: $("pairedList"),
+      copyAll: $("copyAll"),
+      toast: $("toast"),
+    };
+
+    /* ---------- estado ---------- */
+    let runToken = 0;        // invalida traduções antigas quando uma nova começa
+    let toastTimer = 0;
+
+    /* ============================================================
+       Tema
+       ============================================================ */
+    function applyTheme(theme, { persist = true } = {}) {
+      els.html.dataset.theme = theme;
+      els.metaTheme.setAttribute("content", theme === "dark" ? "#000000" : "#ffffff");
+      els.themeToggle.setAttribute(
+        "aria-label",
+        theme === "dark" ? "Alternar para tema claro" : "Alternar para tema escuro"
+      );
+      if (persist) {
+        try { localStorage.setItem("duoline:theme", theme); } catch (_) {}
+      }
+    }
+
+    function initTheme() {
+      let saved = null;
+      try { saved = localStorage.getItem("duoline:theme"); } catch (_) {}
+      if (saved === "dark" || saved === "light") return applyTheme(saved, { persist: false });
+      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      applyTheme(prefersLight ? "light" : "dark", { persist: false });
+    }
+
+    let themeChanging = false;
+
+    function getThemeWipeGeometry() {
+      const rect = els.themeToggle.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const farthestX = Math.max(x, window.innerWidth - x);
+      const farthestY = Math.max(y, window.innerHeight - y);
+      const radius = Math.ceil(Math.hypot(farthestX, farthestY) + 2);
+      return { x, y, radius };
+    }
+
+    function switchTheme() {
+      if (themeChanging) return;
+      themeChanging = true;
+
+      const nextTheme = els.html.dataset.theme === "dark" ? "light" : "dark";
+      const { x, y, radius } = getThemeWipeGeometry();
+      els.html.style.setProperty("--theme-wipe-x", `${x}px`);
+      els.html.style.setProperty("--theme-wipe-y", `${y}px`);
+      els.html.style.setProperty("--theme-wipe-radius", `${radius}px`);
+
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduceMotion) {
+        applyTheme(nextTheme);
+        themeChanging = false;
+        return;
+      }
+
+      if (typeof document.startViewTransition === "function") {
+        els.html.classList.add("theme-wipe-active");
+        try {
+          const transition = document.startViewTransition(() => applyTheme(nextTheme));
+          const finishTransition = () => {
+            els.html.classList.remove("theme-wipe-active");
+            themeChanging = false;
+          };
+          transition.finished.then(finishTransition, finishTransition);
+          return;
+        } catch (_) {
+          els.html.classList.remove("theme-wipe-active");
+        }
+      }
+
+      // Fallback circular para navegadores sem View Transition API.
+      const wipe = document.createElement("div");
+      wipe.className = "theme-wipe-fallback";
+      wipe.style.setProperty("--theme-wipe-x", `${x}px`);
+      wipe.style.setProperty("--theme-wipe-y", `${y}px`);
+      wipe.style.setProperty("--theme-wipe-radius", `${radius}px`);
+      wipe.style.backgroundColor = nextTheme === "light" ? "#fff" : "#000";
+
+      const finishFallback = () => {
+        els.html.classList.add("theme-instant");
+        applyTheme(nextTheme);
+        wipe.remove();
+        requestAnimationFrame(() => {
+          els.html.classList.remove("theme-instant");
+          themeChanging = false;
+        });
+      };
+
+      wipe.addEventListener("transitionend", finishFallback, { once: true });
+      document.body.appendChild(wipe);
+      // Força o estado inicial antes de iniciar a expansão do círculo.
+      void wipe.offsetWidth;
+      requestAnimationFrame(() => wipe.classList.add("is-expanding"));
+    }
+
+    els.themeToggle.addEventListener("click", switchTheme);
+
+    /* ============================================================
+       Entrada: contador, limpar, inverter idiomas
+       ============================================================ */
+    function updateCounter() {
+      const len = els.sourceText.value.length;
+      els.charCount.textContent = `${fmt.format(len)} / ${fmt.format(MAX_CHARS)}`;
+      els.charCount.classList.toggle("is-limit", len >= MAX_CHARS);
+    }
+
+    els.sourceText.addEventListener("input", updateCounter);
+
+    els.sourceText.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        translate();
+      }
+    });
+
+    els.clearBtn.addEventListener("click", () => {
+      runToken++; // cancela qualquer tradução em andamento
+      els.sourceText.value = "";
+      updateCounter();
+      hideResults();
+      setStatus("idle", "Pronto para traduzir");
+      els.translateBtn.disabled = false;
+      els.sourceText.focus();
+    });
+
+    els.swapLangs.addEventListener("click", () => {
+      const from = els.sourceLang.value;
+      els.sourceLang.value = els.targetLang.value;
+      els.targetLang.value = from;
+      syncSwapState();
+      hideResults();
+    });
+
+    function syncSwapState() {
+      // sem idioma de origem definido não há o que inverter
+      els.swapLangs.disabled = els.sourceLang.value === "auto";
+      els.swapLangs.style.opacity = els.swapLangs.disabled ? "0.35" : "1";
+      els.swapLangs.style.cursor = els.swapLangs.disabled ? "not-allowed" : "pointer";
+    }
+
+    els.sourceLang.addEventListener("change", () => { syncSwapState(); hideResults(); });
+    els.targetLang.addEventListener("change", hideResults);
+
+    /* ============================================================
+       Status
+       ============================================================ */
+    function setStatus(kind, message) {
+      els.status.classList.toggle("is-busy", kind === "busy");
+      els.status.classList.toggle("is-error", kind === "error");
+      els.statusText.textContent = message;
+    }
+
+    /* ============================================================
+       Toast
+       ============================================================ */
+    function showToast(message) {
+      window.clearTimeout(toastTimer);
+      els.toast.textContent = message;
+      els.toast.classList.add("is-visible");
+      toastTimer = window.setTimeout(() => {
+        els.toast.classList.remove("is-visible");
+      }, 2400);
+    }
+
+    /* ============================================================
+       Clipboard (com fallback para contextos sem permissão)
+       ============================================================ */
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (_) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand("copy"); } catch (_) {}
+        ta.remove();
+        return ok;
+      }
+    }
+
+    /* ============================================================
+       Utilidades de texto
+       ============================================================ */
+    // A API às vezes devolve entidades HTML escapadas — normaliza.
+    function decodeEntities(str) {
+      const ta = document.createElement("textarea");
+      ta.innerHTML = str;
+      return ta.value;
+    }
+
+    function isQuotaMessage(text) {
+      return /MYMEMORY WARNING/i.test(text) || /quota|limite|ALL AVAILABLE FREE/i.test(text);
+    }
+
+    // Heurística local de detecção de idioma (quando "auto" está ativo).
+    // Cobre os sistemas de escrita não latinos do seletor; textos latinos
+    // assumem inglês como origem mais provável.
+    function detectLanguage(text) {
+      const sample = text.slice(0, 600);
+      if (/[぀-ヿ一-鿿]/.test(sample)) return /[ぁ-んァ-ン]/.test(sample) ? "ja" : "zh-CN";
+      if (/[가-힯]/.test(sample)) return "ko";
+      if (/[а-яА-Я]/.test(sample)) return "ru";
+      if (/[\u0600-\u06FF]/.test(sample)) return "ar";
+      if (/[θ-ωΑ-Ω]/.test(sample)) return "el";
+      return "en";
+    }
+
+    /* ============================================================
+       Serviço de tradução — MyMemory
+       Estratégia: dividir em blocos de ≤430 bytes, traduzir com
+       concorrência 2 e espaçamento entre requisições; se a quebra
+       de linhas não sobreviver à tradução de um bloco, recai para
+       linha a linha naquele bloco.
+       ============================================================ */
+    function buildChunks(lines) {
+      const chunks = [];
+      let current = [];
+
+      const flush = () => {
+        if (current.length) { chunks.push(current); current = []; }
+      };
+
+      for (const line of lines) {
+        if (!line.trim()) { flush(); continue; } // linhas vazias delimitam blocos
+        const candidate = [...current, line].join("\n");
+        if (current.length >= CHUNK_MAX_LINES ||
+            encoder.encode(candidate).length > CHUNK_TARGET_BYTES) {
+          flush();
+        }
+        current.push(line);
+      }
+      flush();
+      return chunks;
+    }
+
+    function mapChunkToLines(lines, translated) {
+      const parts = translated.split(/\r?\n/);
+      if (parts.length === lines.length) return parts;
+      return null; // sinal de quebra incompatível → fallback
+    }
+
+    async function fetchTranslation(text, langpair, signal) {
+      const params = new URLSearchParams({ q: text, langpair });
+      const res = await fetch(`${API_URL}?${params}`, { signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (data.responseStatus !== 200) {
+        const detail = data.responseDetails || "falha na tradução";
+        const err = new Error(detail);
+        err.isQuota = data.responseStatus === 456 || /quota|limit/i.test(detail);
+        throw err;
+      }
+      const out = decodeEntities(String(data.responseData?.translatedText ?? ""));
+      if (isQuotaMessage(out)) {
+        const err = new Error("cota diária esgotada");
+        err.isQuota = true;
+        throw err;
+      }
+      return out;
+    }
+
+    async function translateChunkWithRetry(lines, langpair, signal) {
+      const joined = lines.join("\n");
+      let lastErr = null;
+
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const translated = await fetchTranslation(joined, langpair, signal);
+          const mapped = mapChunkToLines(lines, translated);
+          if (mapped) return mapped;
+          // fallback: linha a linha dentro do bloco
+          const out = [];
+          for (const line of lines) {
+            out.push(await fetchTranslation(line, langpair, signal));
+            await sleep(REQUEST_GAP_MS);
+          }
+          return out;
+        } catch (err) {
+          if (err.name === "AbortError") throw err;
+          lastErr = err;
+          if (err.isQuota) throw err;
+          await sleep(350 * (attempt + 1)); // backoff antes de tentar de novo
+        }
+      }
+      throw lastErr ?? new Error("falha na tradução");
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    /* ============================================================
+       Orquestração
+       ============================================================ */
+    async function translate() {
+      const text = els.sourceText.value;
+      const token = ++runToken;
+
+      if (!text.trim()) {
+        setStatus("error", "Cole um texto para traduzir");
+        els.sourceText.focus();
+        return;
+      }
+
+      const lines = text.split(/\r?\n/);
+      const chunks = buildChunks(lines);
+      const target = els.targetLang.value;
+      const source = els.sourceLang.value === "auto"
+        ? detectLanguage(text)
+        : els.sourceLang.value;
+
+      els.translateBtn.disabled = true;
+      hideResults();
+      setStatus("busy", `Traduzindo… 0/${chunks.length} blocos`);
+
+      const translations = new Array(lines.length).fill(null);
+      let cursor = 0; // índice da próxima linha a processar
+      let done = 0;
+
+      const worker = async () => {
+        while (cursor < lines.length) {
+          if (token !== runToken) return; // corrida invalidada
+          const start = cursor;
+          while (cursor < lines.length && !lines[cursor].trim()) {
+            translations[cursor] = "";
+            cursor++;
+          }
+          if (cursor >= lines.length) return;
+          const chunkStart = cursor;
+          const bytes = { n: 0 };
+          while (cursor < lines.length && lines[cursor].trim()) {
+            const add = encoder.encode(lines[cursor]).length + 1;
+            if (bytes.n + add > CHUNK_TARGET_BYTES ||
+                cursor - chunkStart >= CHUNK_MAX_LINES) break;
+            bytes.n += add;
+            cursor++;
+          }
+          const chunk = lines.slice(chunkStart, cursor);
+          try {
+            const mapped = await translateChunkWithRetry(chunk, `${source}|${target}`);
+            mapped.forEach((t, i) => { translations[chunkStart + i] = t; });
+          } catch (err) {
+            if (err.name === "AbortError") return;
+            throw err;
+          }
+          done++;
+          if (token === runToken) {
+            setStatus("busy", `Traduzindo… ${done}/${chunks.length} blocos`);
+          }
+          await sleep(REQUEST_GAP_MS);
+        }
+      };
+
+      try {
+        await Promise.all([worker(), worker()]); // concorrência 2
+        if (token !== runToken) return;
+        renderResults(lines, translations, source, target);
+        setStatus("idle", `Tradução concluída — ${fmt.format(lines.length)} linhas`);
+        showToast("Tradução concluída");
+      } catch (err) {
+        if (err.name === "AbortError" || token !== runToken) return;
+        const msg = err.isQuota
+          ? "Cota diária da API esgotada — tente amanhã"
+          : "Falha ao traduzir — verifique a conexão e tente novamente";
+        setStatus("error", msg);
+      } finally {
+        if (token === runToken) els.translateBtn.disabled = false;
+      }
+    }
+
+    els.translateBtn.addEventListener("click", translate);
+
+    /* ============================================================
+       Resultados
+       ============================================================ */
+    function hideResults() {
+      els.results.hidden = true;
+      els.pairedList.textContent = "";
+    }
+
+    function renderResults(lines, translations, source, target) {
+      const langLabel = (code) =>
+        els.targetLang.querySelector(`option[value="${code}"]`)?.textContent ?? code;
+      els.resultsMeta.textContent =
+        `— ${fmt.format(lines.length)} linhas · ${langLabel(source).toLowerCase()} → ${langLabel(target).toLowerCase()}`;
+
+      const frag = document.createDocumentFragment();
+      lines.forEach((original, i) => {
+        const translated = translations[i] ?? "";
+        const pair = document.createElement("div");
+        pair.className = "pair";
+        pair.style.animationDelay = `${Math.min(i * 24, 480)}ms`;
+
+        const index = document.createElement("span");
+        index.className = "pair-index";
+        index.textContent = String(i + 1).padStart(2, "0");
+
+        const orig = document.createElement("p");
+        orig.className = "pair-original";
+        orig.textContent = original || " ";
+
+        const trans = document.createElement("p");
+        trans.className = "pair-translation" + (translated ? "" : " is-empty");
+        trans.textContent = translated || "—";
+
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "pair-copy";
+        copyBtn.textContent = "Copiar";
+        copyBtn.setAttribute("aria-label", `Copiar tradução da linha ${i + 1}`);
+        copyBtn.addEventListener("click", async () => {
+          const ok = await copyText(translated || original);
+          showToast(ok ? `Linha ${i + 1} copiada` : "Não foi possível copiar");
+        });
+
+        pair.append(index, orig, trans, copyBtn);
+        frag.appendChild(pair);
+      });
+
+      els.pairedList.textContent = "";
+      els.pairedList.appendChild(frag);
+      els.results.hidden = false;
+    }
+
+    els.copyAll.addEventListener("click", async () => {
+      const pairs = [...els.pairedList.querySelectorAll(".pair")];
+      if (!pairs.length) return;
+      const text = pairs.map((p) => {
+        const orig = p.querySelector(".pair-original").textContent;
+        const trans = p.querySelector(".pair-translation").textContent;
+        return `${orig.trim() ? orig : "·"} — ${trans === "—" ? "" : trans}`;
+      }).join("\n");
+      const ok = await copyText(text);
+      showToast(ok ? "Tradução completa copiada" : "Não foi possível copiar");
+    });
+
+    /* ============================================================
+       Inicialização
+       ============================================================ */
+    initTheme();
+    syncSwapState();
+    updateCounter();
+  })();
+  </script>
+</body>
+</html>
