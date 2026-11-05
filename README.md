@@ -9,7 +9,26 @@ Site de tradução. Usa a API pública MyMemory Translation API.
 3. Dê dois cliques em `INICIAR_DUOLINE.bat`.
 4. Abra `http://localhost:3000`. Mantenha a janela do servidor aberta.
 
+|               ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/mac-pass-sm.png)               |               ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)               |              ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/linux-pass-sm.png)              |
+| :-----------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------: |
+| [![Download for macOS](https://img.shields.io/badge/macOS-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.1) | [![Download for Windows](https://img.shields.io/badge/Windows-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.1) | [![Download for Linux](https://img.shields.io/badge/Linux-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.1) |
+
+
+
+
 Não é necessário executar `npm install` nem instalar o LibreTranslate. O servidor usa apenas módulos nativos do Node.js.
+
+## Executar pelo terminal
+1. Tenha instalado o node.js 18 ou superior
+2. Abra o terminal e digite os seguintes comandos:
+
+
+```
+git clone https://github.com/ybook/Duoline.git
+cd Duoline
+npm start
+```
+<hr>
 
 ## Limites gratuitos do MyMemory
 
@@ -28,6 +47,8 @@ node server.js
 
 Use um e-mail que você tenha autorização para fornecer; ele será enviado ao MyMemory como parâmetro de contato. Não precisa preencher essa variável para testar a API.
 
+<hr>
+
 ## Desempenho
 
 - Solicitações são feitas com até 4 chamadas simultâneas, em vez de esperar cada linha terminar uma após outra.
@@ -35,8 +56,10 @@ Use um e-mail que você tenha autorização para fornecer; ele será enviado ao 
 - Um cache em memória reaproveita até 500 traduções recentes enquanto o servidor estiver aberto.
 - A API pública ainda pode responder lentamente ou limitar requisições; paralelismo reduz esperas, mas não garante tempo fixo.
 
+<hr>
+
 ## Recursos
 
 - Interface adaptável para computador e celular, tema escuro e claro
 - Original e tradução pareados linha por linha
-- A chave de API não é necessária
+- API sem Key
