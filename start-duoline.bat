@@ -17,7 +17,7 @@ if not exist "public\index.html" (
 )
 echo Iniciando o Duoline com a API gratuita do MyMemory...
 echo Abra http://localhost:3000 no navegador.
-start "" /min cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:3000"
+start "" /min cmd /c "timeout /t 1 /nobreak >nul & start http://localhost:3000"
 node server.js
 echo.
 echo O servidor foi encerrado. Se apareceu um erro acima, confira a mensagem.
