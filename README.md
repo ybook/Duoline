@@ -11,7 +11,7 @@ Site de tradução. Usa a API pública MyMemory Translation API.
 
 |               ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/mac-pass-sm.png)               |               ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)               |              ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/linux-pass-sm.png)              |
 | :-----------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------: |
-| [![Download for macOS](https://img.shields.io/badge/macOS-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.1) | [![Download for Windows](https://img.shields.io/badge/Windows-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.1) | [![Download for Linux](https://img.shields.io/badge/Linux-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.1) |
+| [![Download for macOS](https://img.shields.io/badge/macOS-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.2) | [![Download for Windows](https://img.shields.io/badge/Windows-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.2) | [![Download for Linux](https://img.shields.io/badge/Linux-Download-blue)](https://github.com/ybook/Duoline/releases/tag/1.0.2) |
 
 
 
